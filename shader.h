@@ -50,12 +50,10 @@ public:
 			std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
 		}
 
-		unsigned int fragmentShader = glCreateShader(GL_VERTEX_SHADER);
+		unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 		glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
 		glCompileShader(fragmentShader);
 		// check for shader compile errors
-		int success;
-		char infoLog[512];
 		glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
 		if (!success)
 		{

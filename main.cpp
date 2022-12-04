@@ -1,8 +1,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <fstream>
-#include <sstream>
+#include "shader.h"
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -13,7 +12,7 @@ const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
 // Paddle stuff
-const float PADDLE_SCREEN_BOUND = 0.88f;
+const float PADDLE_SCREEN_BOUND = 0.85f;
 const float PADDLE_MOVE_SPEED = 2.5f;
 
 // Since we are doing fake collision we need these gross 'magic' numbers
@@ -69,123 +68,9 @@ int main() {
 
     // SHADER STUFF
 
-    // Read in our shader source code
-    std::string vertexCode;
-    std::string fragmentCode;
-    std::string vertexBallCode;
-
-    std::ifstream vShaderFile;
-    std::ifstream fShaderFile;
-    std::ifstream vBallShaderFile;
-
-    vShaderFile.open("../../GPU_Final/shader_vs.txt");
-    fShaderFile.open("../../GPU_Final/shader_fs.txt");
-    vBallShaderFile.open("../../GPU_Final/shader_vs_ball.txt");
-
-    std::stringstream vShaderStream, fShaderStream, vBallShaderStream;
-    vShaderStream << vShaderFile.rdbuf();
-    fShaderStream << fShaderFile.rdbuf();
-    vBallShaderStream << vBallShaderFile.rdbuf();
-
-    vShaderFile.close();
-    fShaderFile.close();
-    vBallShaderFile.close();
-
-    vertexCode = vShaderStream.str();
-    fragmentCode = fShaderStream.str();
-    vertexBallCode = vBallShaderStream.str();
-
-    const char* vertexShaderSource = vertexCode.c_str();
-    const char* fragmentShaderSource = fragmentCode.c_str();
-    const char* vertexShaderSourceBall = vertexBallCode.c_str();
-
-    // build and compile our shader program
-    // ------------------------------------
-    // vertex shader
-    unsigned int vertexShaderLeft = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShaderLeft, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShaderLeft);
-    // check for shader compile errors
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShaderLeft, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShaderLeft, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-
-    unsigned int vertexShaderRight = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShaderRight, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShaderRight);
-    // check for shader compile errors
-    glGetShaderiv(vertexShaderRight, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShaderRight, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-
-    unsigned int vertexShaderBall = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShaderBall, 1, &vertexShaderSourceBall, NULL);
-    glCompileShader(vertexShaderBall);
-    // check for shader compile errors
-    glGetShaderiv(vertexShaderBall, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShaderBall, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-
-    // fragment shader
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    // check for shader compile errors
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-    // link shaders
-    unsigned int shaderProgramLeft = glCreateProgram();
-    glAttachShader(shaderProgramLeft, vertexShaderLeft);
-    glAttachShader(shaderProgramLeft, fragmentShader);
-    glLinkProgram(shaderProgramLeft);
-    // check for linking errors
-    glGetProgramiv(shaderProgramLeft, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgramLeft, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
-
-    unsigned int shaderProgramRight = glCreateProgram();
-    glAttachShader(shaderProgramRight, vertexShaderRight);
-    glAttachShader(shaderProgramRight, fragmentShader);
-    glLinkProgram(shaderProgramRight);
-    // check for linking errors
-    glGetProgramiv(shaderProgramRight, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgramRight, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
-
-    unsigned int shaderProgramBall = glCreateProgram();
-    glAttachShader(shaderProgramBall, vertexShaderBall);
-    glAttachShader(shaderProgramBall, fragmentShader);
-    glLinkProgram(shaderProgramBall);
-    // check for linking errors
-    glGetProgramiv(shaderProgramBall, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgramBall, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
-
-    glDeleteShader(vertexShaderBall);
-    glDeleteShader(vertexShaderRight);
-    glDeleteShader(vertexShaderLeft);
-    glDeleteShader(fragmentShader);
+    Shader leftPaddleShader = Shader("../../GPU_Final/shader_vs.txt", "../../GPU_Final/shader_fs.txt");
+    Shader rightPaddleShader = Shader("../../GPU_Final/shader_vs.txt", "../../GPU_Final/shader_fs.txt");
+    Shader ballShader = Shader("../../GPU_Final/shader_vs_ball.txt", "../../GPU_Final/shader_fs.txt");
 
     // END OF SHADER STUFF
 
@@ -274,9 +159,8 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT);
 
         // Update positioning of left paddle
-        glUseProgram(shaderProgramLeft);
-        unsigned int transformLoc = glGetUniformLocation(shaderProgramLeft, "offsetY");
-        glUniform1f(transformLoc, leftPaddleY);
+        leftPaddleShader.use();
+        leftPaddleShader.setFloat("offsetY", leftPaddleY);
 
         // For some reason if we update positioning of our right paddle before
         // drawing left paddle then our right paddle also controls our left paddle
@@ -294,20 +178,17 @@ int main() {
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         // Update positioning of right paddle
-        glUseProgram(shaderProgramRight);
-        unsigned int transformLoc1 = glGetUniformLocation(shaderProgramRight, "offsetY");
-        glUniform1f(transformLoc1, rightPaddleY);
+        rightPaddleShader.use();
+        rightPaddleShader.setFloat("offsetY", rightPaddleY);
 
         // Draw our right paddle
         glBindVertexArray(VAOs[1]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         // Draw our ball
-        glUseProgram(shaderProgramBall);
-        unsigned int ballOffsetXLoc = glGetUniformLocation(shaderProgramBall, "offsetX");
-        glUniform1f(ballOffsetXLoc, ballX);
-        unsigned int ballOffsetYLoc = glGetUniformLocation(shaderProgramBall, "offsetY");
-        glUniform1f(ballOffsetYLoc, ballY);
+        ballShader.use();
+        ballShader.setFloat("offsetX", ballX);
+        ballShader.setFloat("offsetY", ballY);
         glBindVertexArray(VAOs[2]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -319,7 +200,6 @@ int main() {
     glDeleteVertexArrays(3, VAOs);
     glDeleteBuffers(3, VBOs);
     glDeleteBuffers(3, EBOs);
-    glDeleteProgram(shaderProgramLeft);
 
 	glfwTerminate();
 
