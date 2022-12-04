@@ -6,14 +6,31 @@
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow* window);
+void handleBall();
 
+// Screen stuff
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
+// Paddle stuff
 const float PADDLE_SCREEN_BOUND = 0.83f;
 const float PADDLE_MOVE_SPEED = 2.5f;
+
+// Since we are doing fake collision we need these gross 'magic' numbers
+const float LEFT_PADDLE_BALL_COLLISION_X = -0.955f;
+const float RIGHT_PADDLE_BALL_COLLISION_X = 0.955f;
+const float PADDLE_WIDTH = 0.03f;
+const float HALF_PADDLE_HEIGHT = 0.125f;
 float leftPaddleY = 0.0f;
 float rightPaddleY = 0.0f;
+
+// Ball stuff
+float ballX = 0.0f;
+float ballY = 0.0f;
+float ballDirection = -1.0f;
+const float STARTING_BALL_SPEED = 0.3f;
+
+// Utility stuff
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -172,17 +189,17 @@ int main() {
     // SET UP STUFF FOR DRAWING
     // PADDLES
     float leftPaddleStartingPoint[] = {
-        -0.955f,  0.125f, 0.0f,  // top right
-        -0.955f, -0.125f, 0.0f,  // bottom right
-        -0.985f, -0.125f, 0.0f,  // bottom left
-        -0.985f,  0.125f, 0.0f   // top left 
+        LEFT_PADDLE_BALL_COLLISION_X,                 HALF_PADDLE_HEIGHT, 0.0f,  // top right
+        LEFT_PADDLE_BALL_COLLISION_X,                -HALF_PADDLE_HEIGHT, 0.0f,  // bottom right
+        LEFT_PADDLE_BALL_COLLISION_X - PADDLE_WIDTH, -HALF_PADDLE_HEIGHT, 0.0f,  // bottom left
+        LEFT_PADDLE_BALL_COLLISION_X - PADDLE_WIDTH,  HALF_PADDLE_HEIGHT, 0.0f   // top left 
     };
 
     float rightPaddleStartingPoint[] = {
-        0.985f,  0.125f, 0.0f,  // top right
-        0.985f, -0.125f, 0.0f,  // bottom right
-        0.955f, -0.125f, 0.0f,  // bottom left
-        0.955f,  0.125f, 0.0f   // top left 
+        RIGHT_PADDLE_BALL_COLLISION_X + PADDLE_WIDTH,  HALF_PADDLE_HEIGHT, 0.0f,  // top right
+        RIGHT_PADDLE_BALL_COLLISION_X + PADDLE_WIDTH, -HALF_PADDLE_HEIGHT, 0.0f,  // bottom right
+        RIGHT_PADDLE_BALL_COLLISION_X,                -HALF_PADDLE_HEIGHT, 0.0f,  // bottom left
+        RIGHT_PADDLE_BALL_COLLISION_X,                 HALF_PADDLE_HEIGHT, 0.0f   // top left
     };
 
     float ballStartingPoint[] = {
@@ -244,6 +261,8 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        handleBall();
+
         // Process any input for the game
 		processInput(window);
 
@@ -282,6 +301,10 @@ int main() {
 
         // Draw our ball
         glUseProgram(shaderProgramBall);
+        unsigned int ballOffsetXLoc = glGetUniformLocation(shaderProgramBall, "offsetX");
+        glUniform1f(ballOffsetXLoc, ballX);
+        unsigned int ballOffsetYLoc = glGetUniformLocation(shaderProgramBall, "offsetY");
+        glUniform1f(ballOffsetYLoc, ballY);
         glBindVertexArray(VAOs[2]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
@@ -301,6 +324,43 @@ int main() {
 
 }
 
+void handleBall() {
+
+    ballX += ballDirection * STARTING_BALL_SPEED * deltaTime;
+
+    // Ball is going left
+    if (ballDirection < 0) {
+
+        if (ballX <= LEFT_PADDLE_BALL_COLLISION_X) {
+
+            if (ballY <= leftPaddleY + HALF_PADDLE_HEIGHT && ballY >= leftPaddleY - HALF_PADDLE_HEIGHT) {
+                ballDirection = -ballDirection;
+            }
+
+            if (ballX < -0.985f) {
+                ballX = 0.0f;
+            }
+
+        }
+    }
+    else if (ballDirection > 0) {
+
+        if (ballX >= RIGHT_PADDLE_BALL_COLLISION_X) {
+
+            if (ballY <= rightPaddleY + HALF_PADDLE_HEIGHT && ballY >= rightPaddleY - HALF_PADDLE_HEIGHT) {
+                ballDirection = -ballDirection;
+            }
+
+            if (ballX > 0.985f) {
+                ballX = 0.0f;
+            }
+
+        }
+
+    }
+
+}
+
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow* window)
@@ -310,6 +370,8 @@ void processInput(GLFWwindow* window)
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         leftPaddleY += PADDLE_MOVE_SPEED * deltaTime;
+
+        // Make sure our paddle stays on the screen
         if (leftPaddleY >= PADDLE_SCREEN_BOUND) {
             leftPaddleY = PADDLE_SCREEN_BOUND;
         }
