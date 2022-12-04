@@ -208,8 +208,8 @@ int main() {
     float ballStartingPoint[] = {
          0.015f,  0.015f, 0.0f,  // top right
          0.015f, -0.015f, 0.0f,  // bottom right
-        -0.0f, -0.015f, 0.0f,  // bottom left
-        -0.0f,  0.015f, 0.0f   // top left
+        -0.0f,   -0.015f, 0.0f,  // bottom left
+        -0.0f,    0.015f, 0.0f   // top left
     };
 
     unsigned int indices[] = {  // note that we start from 0!
