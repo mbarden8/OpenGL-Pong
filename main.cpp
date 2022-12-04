@@ -2,10 +2,13 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include "shader.h"
+#include <chrono>
+#include <thread>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow* window);
 void handleBall();
+void newRound();
 
 // Screen stuff
 const unsigned int SCR_WIDTH = 1920;
@@ -35,6 +38,9 @@ const float BALL_SCREEN_BOUND = 0.95f;
 // Utility stuff
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+bool roundStarted = false;
+const float ROUND_RESTART_DELAY = 1.0f;
+float roundRestartTimer = 0.0f;
 
 int main() {
 
@@ -68,9 +74,9 @@ int main() {
 
     // SHADER STUFF
 
-    Shader leftPaddleShader = Shader("../../GPU_Final/shader_vs.txt", "../../GPU_Final/shader_fs.txt");
+    Shader leftPaddleShader  = Shader("../../GPU_Final/shader_vs.txt", "../../GPU_Final/shader_fs.txt");
     Shader rightPaddleShader = Shader("../../GPU_Final/shader_vs.txt", "../../GPU_Final/shader_fs.txt");
-    Shader ballShader = Shader("../../GPU_Final/shader_vs_ball.txt", "../../GPU_Final/shader_fs.txt");
+    Shader ballShader        = Shader("../../GPU_Final/shader_vs_ball.txt", "../../GPU_Final/shader_fs.txt");
 
     // END OF SHADER STUFF
 
@@ -150,6 +156,9 @@ int main() {
         lastFrame = currentFrame;
 
         handleBall();
+        if (roundRestartTimer > 0.0f) {
+            roundRestartTimer -= deltaTime;
+        }
 
         // Process any input for the game
 		processInput(window);
@@ -209,45 +218,57 @@ int main() {
 
 void handleBall() {
 
-    ballX += ballDirectionX * STARTING_BALL_X_SPEED * deltaTime;
-    ballY += ballDirectionY * STARTING_BALL_Y_SPEED * deltaTime;
+    if (roundStarted) {
 
-    // Check wall bounds
-    if (ballY <= -BALL_SCREEN_BOUND || ballY >= BALL_SCREEN_BOUND) {
-        ballDirectionY = -ballDirectionY;
-    }
+        ballX += ballDirectionX * STARTING_BALL_X_SPEED * deltaTime;
+        ballY += ballDirectionY * STARTING_BALL_Y_SPEED * deltaTime;
 
-    // Ball is going left
-    if (ballDirectionX < 0) {
+        // Check wall bounds
+        if (ballY <= -BALL_SCREEN_BOUND || ballY >= BALL_SCREEN_BOUND) {
+            ballDirectionY = -ballDirectionY;
+        }
 
-        if (ballX <= LEFT_PADDLE_BALL_COLLISION_X) {
+        // Ball is going left
+        if (ballDirectionX < 0) {
 
-            if (ballY <= leftPaddleY + HALF_PADDLE_HEIGHT && ballY >= leftPaddleY - HALF_PADDLE_HEIGHT) {
-                ballDirectionX = -ballDirectionX;
+            if (ballX <= LEFT_PADDLE_BALL_COLLISION_X) {
+
+                if (ballY <= leftPaddleY + HALF_PADDLE_HEIGHT && ballY >= leftPaddleY - HALF_PADDLE_HEIGHT) {
+                    ballDirectionX = -ballDirectionX;
+                }
+
+                if (ballX < -1.0f) {
+                    newRound();
+                }
+
             }
+        }
+        else if (ballDirectionX > 0) {
 
-            if (ballX < -0.985f) {
-                ballX = 0.0f;
+            if (ballX >= RIGHT_PADDLE_BALL_COLLISION_X) {
+
+                if (ballY <= rightPaddleY + HALF_PADDLE_HEIGHT && ballY >= rightPaddleY - HALF_PADDLE_HEIGHT) {
+                    ballDirectionX = -ballDirectionX;
+                }
+
+                if (ballX > 1.0f) {
+                    newRound();
+                }
+
             }
 
         }
     }
-    else if (ballDirectionX > 0) {
 
-        if (ballX >= RIGHT_PADDLE_BALL_COLLISION_X) {
+}
 
-            if (ballY <= rightPaddleY + HALF_PADDLE_HEIGHT && ballY >= rightPaddleY - HALF_PADDLE_HEIGHT) {
-                ballDirectionX = -ballDirectionX;
-            }
-
-            if (ballX > 0.985f) {
-                ballX = 0.0f;
-            }
-
-        }
-
-    }
-
+void newRound() {
+    
+    ballX = 0.0f;
+    ballY = 0.0f;
+    ballDirectionX = -ballDirectionX;
+    roundStarted = false;
+    roundRestartTimer = ROUND_RESTART_DELAY;
 }
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
@@ -264,6 +285,10 @@ void processInput(GLFWwindow* window)
         if (leftPaddleY >= PADDLE_SCREEN_BOUND) {
             leftPaddleY = PADDLE_SCREEN_BOUND;
         }
+        // Would be better to handle this with an event system but I'm not
+        // making that for this
+        if (!roundStarted && roundRestartTimer <= 0.0f)
+            roundStarted = true;
     }
         
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
@@ -271,6 +296,8 @@ void processInput(GLFWwindow* window)
         if (leftPaddleY <= -PADDLE_SCREEN_BOUND) {
             leftPaddleY = -PADDLE_SCREEN_BOUND;
         }
+        if (!roundStarted && roundRestartTimer <= 0.0f)
+            roundStarted = true;
     }
         
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
@@ -278,6 +305,8 @@ void processInput(GLFWwindow* window)
         if (rightPaddleY >= PADDLE_SCREEN_BOUND) {
             rightPaddleY = PADDLE_SCREEN_BOUND;
         }
+        if (!roundStarted && roundRestartTimer <= 0.0f)
+            roundStarted = true;
     }
         
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
@@ -285,6 +314,8 @@ void processInput(GLFWwindow* window)
         if (rightPaddleY <= -PADDLE_SCREEN_BOUND) {
             rightPaddleY = -PADDLE_SCREEN_BOUND;
         }
+        if (!roundStarted && roundRestartTimer <= 0.0f)
+            roundStarted = true;
     }
         
 }
