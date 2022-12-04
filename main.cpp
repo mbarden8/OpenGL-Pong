@@ -1,9 +1,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <fstream>
 #include <sstream>
 
@@ -13,6 +10,7 @@ void processInput(GLFWwindow* window);
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
+const float PADDLE_SCREEN_BOUND = 0.83f;
 const float PADDLE_MOVE_SPEED = 2.5f;
 float leftPaddleY = 0.0f;
 float rightPaddleY = 0.0f;
@@ -54,25 +52,32 @@ int main() {
     // Read in our shader source code
     std::string vertexCode;
     std::string fragmentCode;
+    std::string vertexBallCode;
 
     std::ifstream vShaderFile;
     std::ifstream fShaderFile;
+    std::ifstream vBallShaderFile;
 
     vShaderFile.open("../../GPU_Final/shader_vs.txt");
     fShaderFile.open("../../GPU_Final/shader_fs.txt");
+    vBallShaderFile.open("../../GPU_Final/shader_vs_ball.txt");
 
-    std::stringstream vShaderStream, fShaderStream;
+    std::stringstream vShaderStream, fShaderStream, vBallShaderStream;
     vShaderStream << vShaderFile.rdbuf();
     fShaderStream << fShaderFile.rdbuf();
+    vBallShaderStream << vBallShaderFile.rdbuf();
 
     vShaderFile.close();
     fShaderFile.close();
+    vBallShaderFile.close();
 
     vertexCode = vShaderStream.str();
     fragmentCode = fShaderStream.str();
+    vertexBallCode = vBallShaderStream.str();
 
     const char* vertexShaderSource = vertexCode.c_str();
     const char* fragmentShaderSource = fragmentCode.c_str();
+    const char* vertexShaderSourceBall = vertexBallCode.c_str();
 
     // build and compile our shader program
     // ------------------------------------
@@ -98,6 +103,17 @@ int main() {
     if (!success)
     {
         glGetShaderInfoLog(vertexShaderRight, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+    }
+
+    unsigned int vertexShaderBall = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShaderBall, 1, &vertexShaderSourceBall, NULL);
+    glCompileShader(vertexShaderBall);
+    // check for shader compile errors
+    glGetShaderiv(vertexShaderBall, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertexShaderBall, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
     }
 
@@ -135,12 +151,25 @@ int main() {
         std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
     }
 
+    unsigned int shaderProgramBall = glCreateProgram();
+    glAttachShader(shaderProgramBall, vertexShaderBall);
+    glAttachShader(shaderProgramBall, fragmentShader);
+    glLinkProgram(shaderProgramBall);
+    // check for linking errors
+    glGetProgramiv(shaderProgramBall, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(shaderProgramBall, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+    }
+
+    glDeleteShader(vertexShaderBall);
     glDeleteShader(vertexShaderRight);
     glDeleteShader(vertexShaderLeft);
     glDeleteShader(fragmentShader);
 
     // END OF SHADER STUFF
 
+    // SET UP STUFF FOR DRAWING
     // PADDLES
     float leftPaddleStartingPoint[] = {
         -0.955f,  0.125f, 0.0f,  // top right
@@ -156,14 +185,21 @@ int main() {
         0.955f,  0.125f, 0.0f   // top left 
     };
 
+    float ballStartingPoint[] = {
+         0.015f,  0.015f, 0.0f,  // top right
+         0.015f, -0.015f, 0.0f,  // bottom right
+        -0.0f, -0.015f, 0.0f,  // bottom left
+        -0.0f,  0.015f, 0.0f   // top left
+    };
+
     unsigned int indices[] = {  // note that we start from 0!
         0, 1, 3,  // first Triangle
         1, 2, 3   // second Triangle
     };
-    unsigned int VBOs[2], VAOs[2], EBOs[2];
-    glGenVertexArrays(2, VAOs);
-    glGenBuffers(2, VBOs);
-    glGenBuffers(2, EBOs);
+    unsigned int VBOs[3], VAOs[3], EBOs[3];
+    glGenVertexArrays(3, VAOs);
+    glGenBuffers(3, VBOs);
+    glGenBuffers(3, EBOs);
     // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
     glBindVertexArray(VAOs[0]);
 
@@ -187,6 +223,20 @@ int main() {
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+    glBindVertexArray(VAOs[2]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBOs[2]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(ballStartingPoint), ballStartingPoint, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[2]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // END OF SETTING UP STUFF FOR DRAWING
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -230,14 +280,19 @@ int main() {
         glBindVertexArray(VAOs[1]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+        // Draw our ball
+        glUseProgram(shaderProgramBall);
+        glBindVertexArray(VAOs[2]);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 
 	}
 
-    glDeleteVertexArrays(2, VAOs);
-    glDeleteBuffers(2, VBOs);
-    glDeleteBuffers(2, EBOs);
+    glDeleteVertexArrays(3, VAOs);
+    glDeleteBuffers(3, VBOs);
+    glDeleteBuffers(3, EBOs);
     glDeleteProgram(shaderProgramLeft);
 
 	glfwTerminate();
@@ -255,29 +310,29 @@ void processInput(GLFWwindow* window)
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         leftPaddleY += PADDLE_MOVE_SPEED * deltaTime;
-        if (leftPaddleY >= 0.83f) {
-            leftPaddleY = 0.83f;
+        if (leftPaddleY >= PADDLE_SCREEN_BOUND) {
+            leftPaddleY = PADDLE_SCREEN_BOUND;
         }
     }
         
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
         leftPaddleY -= PADDLE_MOVE_SPEED * deltaTime;
-        if (leftPaddleY <= -0.83f) {
-            leftPaddleY = -0.83f;
+        if (leftPaddleY <= -PADDLE_SCREEN_BOUND) {
+            leftPaddleY = -PADDLE_SCREEN_BOUND;
         }
     }
         
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
         rightPaddleY += PADDLE_MOVE_SPEED * deltaTime;
-        if (rightPaddleY >= 0.83f) {
-            rightPaddleY = 0.83f;
+        if (rightPaddleY >= PADDLE_SCREEN_BOUND) {
+            rightPaddleY = PADDLE_SCREEN_BOUND;
         }
     }
         
     if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
         rightPaddleY -= PADDLE_MOVE_SPEED * deltaTime;
-        if (rightPaddleY <= -0.83f) {
-            rightPaddleY = -0.83f;
+        if (rightPaddleY <= -PADDLE_SCREEN_BOUND) {
+            rightPaddleY = -PADDLE_SCREEN_BOUND;
         }
     }
         
