@@ -13,7 +13,7 @@ const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
 // Paddle stuff
-const float PADDLE_SCREEN_BOUND = 0.83f;
+const float PADDLE_SCREEN_BOUND = 0.88f;
 const float PADDLE_MOVE_SPEED = 2.5f;
 
 // Since we are doing fake collision we need these gross 'magic' numbers
@@ -27,8 +27,11 @@ float rightPaddleY = 0.0f;
 // Ball stuff
 float ballX = 0.0f;
 float ballY = 0.0f;
-float ballDirection = -1.0f;
-const float STARTING_BALL_SPEED = 0.3f;
+float ballDirectionX = -1.0f;
+float ballDirectionY = -1.0f;
+const float STARTING_BALL_X_SPEED = 0.5f;
+const float STARTING_BALL_Y_SPEED = 0.1f;
+const float BALL_SCREEN_BOUND = 0.95f;
 
 // Utility stuff
 float deltaTime = 0.0f;
@@ -326,15 +329,21 @@ int main() {
 
 void handleBall() {
 
-    ballX += ballDirection * STARTING_BALL_SPEED * deltaTime;
+    ballX += ballDirectionX * STARTING_BALL_X_SPEED * deltaTime;
+    ballY += ballDirectionY * STARTING_BALL_Y_SPEED * deltaTime;
+
+    // Check wall bounds
+    if (ballY <= -BALL_SCREEN_BOUND || ballY >= BALL_SCREEN_BOUND) {
+        ballDirectionY = -ballDirectionY;
+    }
 
     // Ball is going left
-    if (ballDirection < 0) {
+    if (ballDirectionX < 0) {
 
         if (ballX <= LEFT_PADDLE_BALL_COLLISION_X) {
 
             if (ballY <= leftPaddleY + HALF_PADDLE_HEIGHT && ballY >= leftPaddleY - HALF_PADDLE_HEIGHT) {
-                ballDirection = -ballDirection;
+                ballDirectionX = -ballDirectionX;
             }
 
             if (ballX < -0.985f) {
@@ -343,12 +352,12 @@ void handleBall() {
 
         }
     }
-    else if (ballDirection > 0) {
+    else if (ballDirectionX > 0) {
 
         if (ballX >= RIGHT_PADDLE_BALL_COLLISION_X) {
 
             if (ballY <= rightPaddleY + HALF_PADDLE_HEIGHT && ballY >= rightPaddleY - HALF_PADDLE_HEIGHT) {
-                ballDirection = -ballDirection;
+                ballDirectionX = -ballDirectionX;
             }
 
             if (ballX > 0.985f) {
